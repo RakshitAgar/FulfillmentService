@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"fullfilmentService/db"
+	"fullfilmentService/internal/controller"
 	"fullfilmentService/internal/service"
 	pb "fullfilmentService/proto"
 	"google.golang.org/grpc"
@@ -18,16 +19,21 @@ func main() {
 	db.Init()
 	defer db.Close()
 
+	// Create the repository and service instances
 	repo := db.NewDeliveryRepository(db.DB)
-	service := service.NewFulfillmentService(repo)
+	fulfillmentService := service.NewFulfillmentService(repo)
 
+	// Create the controller, passing in the service instance
+	fulfillmentController := controller.NewFulfillmentController(fulfillmentService)
+
+	// Set up gRPC server and register the controller as the service
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterFulfillmentServiceServer(s, service)
+	pb.RegisterFulfillmentServiceServer(s, fulfillmentController) // Register the controller, not the service
 
 	go func() {
 		log.Printf("server listening at %v", lis.Addr())
