@@ -2,6 +2,7 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -43,4 +44,32 @@ func GetOrderDetail(orderID int64) (*OrderDetail, error) {
 	}
 
 	return &orderDetail, nil
+}
+
+func UpdateOrderStatus(orderID int64, status string) error {
+	url := fmt.Sprintf("http://localhost:8083/orders/%d/status", orderID)
+	statusUpdate := map[string]string{"status": status}
+	jsonData, err := json.Marshal(statusUpdate)
+	if err != nil {
+		return fmt.Errorf("failed to marshal status update: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call order service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("order service returned status: %s", resp.Status)
+	}
+
+	return nil
 }

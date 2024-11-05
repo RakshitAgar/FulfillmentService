@@ -25,7 +25,16 @@ It calls the order service to get the order details and then saves the delivery 
 */
 
 func (s *FulfillmentService) AssignDeliveryAgent(ctx context.Context, req *pb.AssignDeliveryPartnerRequest) (*pb.AssignDeliveryResponse, error) {
-	status := "assigned"
+	status := "ASSIGNED"
+
+	// Check if a delivery already exists for the given order ID
+	orderExists, err := s.repo.CheckOrderPresent(ctx, req.OrderId)
+	if err != nil {
+		return nil, err
+	}
+	if orderExists {
+		return nil, fmt.Errorf("a delivery is already assigned to order ID %d", req.OrderId)
+	}
 
 	// Call the order service to get order details
 	orderDetail, err := client.GetOrderDetail(req.OrderId)
@@ -39,6 +48,12 @@ func (s *FulfillmentService) AssignDeliveryAgent(ctx context.Context, req *pb.As
 	}
 
 	err = s.repo.SaveDelivery(ctx, delivery)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the order status
+	err = client.UpdateOrderStatus(req.OrderId, status)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +87,11 @@ func (s *FulfillmentService) StatusUpdate(ctx context.Context, req *pb.UpdateDel
 	// Update the status of the delivery
 	delivery.Status = req.Status
 
-	// should we also update the order status ?
-	// Call the order service to get order details
+	// Update the order status
+	err = client.UpdateOrderStatus(delivery.OrderID, req.Status)
+	if err != nil {
+		return nil, err
+	}
 
 	// Save the updated delivery details
 	err = s.repo.UpdateDelivery(ctx, delivery)

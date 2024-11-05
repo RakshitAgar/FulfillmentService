@@ -29,3 +29,11 @@ func (r *DeliveryRepository) GetDeliveryByID(ctx context.Context, deliveryID int
 func (r *DeliveryRepository) UpdateDelivery(ctx context.Context, delivery *model.Delivery) error {
 	return r.db.WithContext(ctx).Save(delivery).Error
 }
+
+func (r *DeliveryRepository) CheckOrderPresent(ctx context.Context, orderID int64) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.Delivery{}).Where("order_id = ?", orderID).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
